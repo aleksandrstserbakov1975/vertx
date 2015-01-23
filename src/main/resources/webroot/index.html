@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+
+  <script src="https://code.jquery.com/jquery.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="http://cdn.sockjs.org/sockjs-0.3.4.min.js"></script>
+  <script src="js/vertxbus.js"></script>
+  
+<div class="container">
+  <div class="row text-center">
+      <a href="#" class="btn btn-lg btn-success" data-toggle="modal" data-target="#basicModal">Click to open Modal</a>
+  </div>
+  <hr>
+</div>
+
+<div class="modal fade" id="basicModal" tabindex="-1" role="dialog" aria-labelledby="basicModal" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true" onclick="resetform()">&times;</button>
+        <h4 class="modal-title" id="myModalLabel">Send Email</h4>
+      </div>
+      <div class="modal-body">
+		  <form onsubmit="return false;">
+		  	<div class="form-group" hidden id="groupStatus">
+		  	  <label for="status">Status:</label>
+			  <span id="status"></span>
+			</div>
+			<div class="form-group" hidden id="groupMessage">
+			  <label for="message">Message:</label>
+			  <span id="message"></span>
+			</div>
+			<div class="form-group" hidden id="groupStackTrace">
+			  <label for="stackTrace">Stack trace:</label>
+			  <span id="stackTrace"></span>
+			</div>			
+		    <div class="form-group">
+		    	<label for="sendTo">To:</label>
+		    	<input type="email" class="form-control" id="sendTo"/>
+		    </div>
+		    <div class="form-group">
+		    	<label for="sendSubject">Subject</label>
+		    	<input type="text" class="form-control" id="sendSubject" maxlength="128" />
+		    </div>
+		    <div class="form-group">
+		    	<label for="sendBody">Body:</label>
+		    	<textarea class="form-control" id="sendBody" rows="3" ></textarea>
+		    </div>
+		  </form>
+		
+		</div>
+        
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="sendButton" class="btn btn-default" >Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+
+  var eb = null;
+
+  function publish(address, to, subject, body) {
+    if (eb) {
+      var json = {to: to, subject: subject, body: body};
+      eb.publish(address, json);
+    }
+  }
+
+  function subscribe(address) {
+    if (eb) {
+      eb.registerHandler(address, function(msg, replyTo) {
+    	$('#status').text(msg.status);
+    	$('#message').text("");
+    	for (i=0;i<msg.message.length;i++)
+    	{
+    		if (i==0)
+    			$('#message').append("<br>");
+    		$('#message').append(msg.message[i] + "<br>");
+   		}
+    	$('#stackTrace').text(msg.stackTrace);
+    	$('#groupStatus').show();
+    	$('#groupMessage').show();
+    	if (msg.stackTrace)
+    		$('#groupStackTrace').show();
+      });
+    }
+  }
+
+  function resetform(){
+  	$('#status').text("");
+	$('#message').text("");
+	$('#stackTrace').text("");
+	$('#groupStatus').hide();
+	$('#groupMessage').hide();
+	$('#groupStackTrace').hide();
+	document.getElementById("sendTo").value = "";
+	document.getElementById("sendSubject").value = "";
+	document.getElementById("sendBody").value = "";
+  }
+  
+  function openConn() {
+    if (!eb) {
+      eb = new vertx.EventBus("http://localhost:8080/eventbus");
+
+      eb.onopen = function() {
+        subscribe("epms.email.out");
+      };
+
+      eb.onclose = function() {
+        eb = null;
+      };
+    }
+  }
+
+  $(document).ready(function() {
+    openConn();
+    $("#sendButton").click(function() {
+      publish("epms.email.in", $("#sendTo").val(), $("#sendSubject").val(), $("#sendBody").val());
+    });
+  });
+
+</script>
+
+</body>
+</html>
